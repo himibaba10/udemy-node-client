@@ -8,7 +8,6 @@ import Paginator from "../../components/Paginator/Paginator";
 import Loader from "../../components/Loader/Loader";
 import ErrorHandler from "../../components/ErrorHandler/ErrorHandler";
 import "./Feed.css";
-import openSocket from "socket.io-client";
 
 class Feed extends Component {
   state = {
@@ -36,39 +35,7 @@ class Feed extends Component {
       .catch(this.catchError);
 
     this.loadPosts();
-    const socket = openSocket("http://localhost:8080");
-    socket.on("posts", (data) => {
-      if (data.action === "create") {
-        this.addPost(data.post);
-      } else if (data.action === "update") {
-        this.updatePost(data.post);
-      } else if (data.action === "delete") {
-        this.loadPosts();
-      }
-    });
   }
-
-  addPost = (post) => {
-    this.setState((prevState) => {
-      const updatedPosts = [...prevState.posts];
-      if (prevState.postPage === 1) {
-        updatedPosts.pop();
-        updatedPosts.unshift(post);
-      }
-      return { posts: updatedPosts, totalPosts: prevState.totalPosts + 1 };
-    });
-  };
-
-  updatePost = (post) => {
-    this.setState((prevState) => {
-      const updatedPosts = [...prevState.posts];
-      const postIndex = updatedPosts.findIndex((p) => p._id === post._id);
-      if (postIndex > -1) {
-        updatedPosts[postIndex] = post;
-      }
-      return { posts: updatedPosts };
-    });
-  };
 
   loadPosts = (direction) => {
     if (direction) {
