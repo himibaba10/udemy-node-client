@@ -77,15 +77,6 @@ class Feed extends Component {
     })
       .then((res) => res.json())
       .then((resData) => {
-        console.log(resData);
-        console.log(
-          resData.data.getPosts.posts.map((post) => {
-            return {
-              ...post,
-              imagePath: post.imageUrl,
-            };
-          })
-        );
         this.setState({
           posts: resData.data.getPosts.posts.map((post) => {
             return {
@@ -140,35 +131,52 @@ class Feed extends Component {
       editLoading: true,
     });
     const formData = new FormData();
-    formData.append("title", postData.title);
-    formData.append("content", postData.content);
     formData.append("image", postData.image);
+    if (this.state.editPost)
+      formData.append("oldPath", this.state.editPost.imagePath);
 
-    fetch("http://localhost:8080/graphql", {
-      method: "POST",
+    fetch("http://localhost:8080/post-image", {
+      method: "PUT",
       headers: {
         Authorization: `Bearer ${this.props.token}`,
-        "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        query: `
-          mutation {
-            createPost(
-              postInput: { title: "${postData.title}", content: "${postData.content}", imageUrl: "test image" }
-            ) {
-              _id
-              title
-              content
-              imageUrl
-              creator { name }
-              createdAt
-            }
-          }
-        `,
-      }),
+      body: formData,
     })
       .then((res) => res.json())
+      .then((fileResData) => {
+        const imageUrl = fileResData.filePath;
+        console.log({
+          title: postData.title,
+          content: postData.content,
+          imageUrl: imageUrl,
+        });
+        return fetch("http://localhost:8080/graphql", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${this.props.token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            query: `
+            mutation {
+              createPost(
+                postInput: { title: "${postData.title}", content: "${postData.content}", imageUrl: "${imageUrl}" }
+              ) {
+                _id
+                title
+                content
+                imageUrl
+                creator { name }
+                createdAt
+              }
+            }
+          `,
+          }),
+        });
+      })
+      .then((res) => res.json())
       .then((resData) => {
+        console.log(resData.errors);
         if (resData.errors && resData.errors[0].statusCode === 400) {
           throw new Error("Validation failed.");
         }
