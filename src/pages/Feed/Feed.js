@@ -145,23 +145,27 @@ class Feed extends Component {
       .then((res) => res.json())
       .then((fileResData) => {
         const imageUrl = fileResData.filePath;
-        console.log({
-          title: postData.title,
-          content: postData.content,
-          imageUrl: imageUrl,
-        });
-        return fetch("http://localhost:8080/graphql", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${this.props.token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
+        let graphqlQuery = {
+          query: `
+          mutation {
+            createPost(
+              postInput: { title: "${postData.title}", content: "${postData.content}", imageUrl: "${imageUrl}" }
+            ) {
+              _id
+              title
+              content
+              imageUrl
+              creator { name }
+              createdAt
+            }
+          }
+        `,
+        };
+        if (this.state.editPost) {
+          graphqlQuery = {
             query: `
             mutation {
-              createPost(
-                postInput: { title: "${postData.title}", content: "${postData.content}", imageUrl: "${imageUrl}" }
-              ) {
+              updatePost(postId: "${this.state.editPost._id}", postInput: { title: "${postData.title}", content: "${postData.content}", imageUrl: "${imageUrl}" }) {
                 _id
                 title
                 content
@@ -171,7 +175,15 @@ class Feed extends Component {
               }
             }
           `,
-          }),
+          };
+        }
+        return fetch("http://localhost:8080/graphql", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${this.props.token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(graphqlQuery),
         });
       })
       .then((res) => res.json())
@@ -184,14 +196,18 @@ class Feed extends Component {
           throw new Error("Login failed.");
         }
         console.log(resData);
-        const post = {
-          _id: resData.data.createPost._id,
-          title: resData.data.createPost.title,
-          content: resData.data.createPost.content,
-          imageUrl: resData.data.createPost.imageUrl,
-          creator: resData.data.createPost.creator,
-          createdAt: resData.data.createPost.createdAt,
+        let resDataField = "createPost";
+        if (this.state.editPost) resDataField = "updatePost";
+
+        let post = {
+          _id: resData.data[resDataField]._id,
+          title: resData.data[resDataField].title,
+          content: resData.data[resDataField].content,
+          imageUrl: resData.data[resDataField].imageUrl,
+          creator: resData.data[resDataField].creator,
+          createdAt: resData.data[resDataField].createdAt,
         };
+
         this.setState((prevState) => {
           let updatedPosts = [...prevState.posts];
           if (prevState.editPost) {

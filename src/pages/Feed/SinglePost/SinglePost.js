@@ -14,24 +14,45 @@ class SinglePost extends Component {
 
   componentDidMount() {
     const postId = this.props.match.params.postId;
-    fetch(`http://localhost:8080/feed/post/${postId}`, {
+    fetch(`http://localhost:8080/graphql`, {
+      method: "POST",
       headers: {
         Authorization: `Bearer ${this.props.token}`,
+        "Content-Type": "application/json",
       },
-    })
-      .then((res) => {
-        if (res.status !== 200) {
-          throw new Error("Failed to fetch status");
+      body: JSON.stringify({
+        query: `
+        {
+          getPost(postId: "${postId}") {
+            _id
+            title
+            content
+            imageUrl
+            creator { name }
+            createdAt
+          }
         }
-        return res.json();
-      })
+      `,
+      }),
+    })
+      .then((res) => res.json())
       .then((resData) => {
+        console.log(resData.errors);
+        if (resData.errors && resData.errors[0].statusCode === 400) {
+          throw new Error("Validation failed.");
+        }
+        if (resData.errors) {
+          throw new Error("Login failed.");
+        }
+
         this.setState({
-          title: resData.post.title,
-          author: resData.post.creator.name,
-          date: new Date(resData.post.createdAt).toLocaleDateString("en-US"),
-          image: `http://localhost:8080/${resData.post.imageUrl}`,
-          content: resData.post.content,
+          title: resData.data.getPost.title,
+          author: resData.data.getPost.creator.name,
+          date: new Date(resData.data.getPost.createdAt).toLocaleDateString(
+            "en-US"
+          ),
+          image: `http://localhost:8080/${resData.data.getPost.imageUrl}`,
+          content: resData.data.getPost.content,
         });
       })
       .catch((err) => {
