@@ -22,16 +22,33 @@ class Feed extends Component {
   };
 
   componentDidMount() {
-    console.log({ token: this.props.token });
-    fetch("URL")
-      .then((res) => {
-        if (res.status !== 200) {
-          throw new Error("Failed to fetch user status.");
+    const graphqlQuery = {
+      query: `
+      {
+        getUserStatus {
+          status
         }
-        return res.json();
-      })
+      }
+      `,
+    };
+    fetch("http://localhost:8080/graphql", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${this.props.token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(graphqlQuery),
+    })
+      .then((res) => res.json())
       .then((resData) => {
-        this.setState({ status: resData.status });
+        console.log(resData.errors);
+        if (resData.errors && resData.errors[0].statusCode === 400) {
+          throw new Error("Validation failed.");
+        }
+        if (resData.errors) {
+          throw new Error("Login failed.");
+        }
+        this.setState({ status: resData.data.getUserStatus.status });
       })
       .catch(this.catchError);
 
@@ -93,15 +110,37 @@ class Feed extends Component {
 
   statusUpdateHandler = (event) => {
     event.preventDefault();
-    fetch("URL")
-      .then((res) => {
-        if (res.status !== 200 && res.status !== 201) {
-          throw new Error("Can't update status!");
+
+    const graphqlQuery = {
+      query: `
+      mutation {
+        updateUserStatus(status: "${this.state.status}") {
+          status
         }
-        return res.json();
-      })
+      }
+      `,
+    };
+
+    fetch("http://localhost:8080/graphql", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${this.props.token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(graphqlQuery),
+    })
+      .then((res) => res.json())
       .then((resData) => {
+        console.log(resData.errors);
+        if (resData.errors && resData.errors[0].statusCode === 400) {
+          throw new Error("Validation failed.");
+        }
+        if (resData.errors) {
+          throw new Error("Login failed.");
+        }
         console.log(resData);
+
+        this.setState({ status: resData.data.updateUserStatus.status });
       })
       .catch(this.catchError);
   };
